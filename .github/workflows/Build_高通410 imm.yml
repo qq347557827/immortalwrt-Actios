@@ -217,8 +217,27 @@ jobs:
     - name: SSH 调试有效时间6h! 连接后输入q 输入exit即可退出，自动继续后续编译流程
       uses: mxschmitt/action-tmate@master
       if: ${{ inputs.ssh || contains(github.event.action, 'ssh') }}
+
       
-      
+      # 1. 先修改内核源码里的配置（必须在 make defconfig 之前！）
+    - name: 开启内核IPv4策略路由支持（强制修改源码）
+      run: |
+        cd openwrt
+        # 列出所有要修改的配置文件（日志可见，方便确认）
+        echo "=== 要修改的内核配置文件列表 ==="
+        ls -la target/linux/msm89xx/config-*
+        ls -la target/linux/generic/config-*
+    
+        # 修改msm89xx平台通用配置（核心！）
+        sed -i 's/# CONFIG_IP_ADVANCED_ROUTER is not set/CONFIG_IP_ADVANCED_ROUTER=y/' target/linux/msm89xx/config-* || true
+        sed -i 's/# CONFIG_IP_MULTIPLE_TABLES is not set/CONFIG_IP_MULTIPLE_TABLES=y/' target/linux/msm89xx/config-* || true
+        sed -i 's/# CONFIG_FIB_RULES is not set/CONFIG_FIB_RULES=y/' target/linux/msm89xx/config-* || true
+    
+        # 修改全局通用配置（双保险）
+        sed -i 's/# CONFIG_IP_ADVANCED_ROUTER is not set/CONFIG_IP_ADVANCED_ROUTER=y/' target/linux/generic/config-* || true
+        sed -i 's/# CONFIG_IP_MULTIPLE_TABLES is not set/CONFIG_IP_MULTIPLE_TABLES=y/' target/linux/generic/config-* || true
+        sed -i 's/# CONFIG_FIB_RULES is not set/CONFIG_FIB_RULES=y/' target/linux/generic/config-* || true
+
     - name: Config defconfig
       id: config
       run: |
@@ -234,23 +253,17 @@ jobs:
         make download -j4 V=s
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
-    - name: 开启内核IPv4策略路由支持（强制修改target配置）
+
+    
+    - name: 最终确认内核配置
       run: |
         cd openwrt
-        # 1. 强制修改MSM8916平台的内核配置文件（高通410正确路径）
-        sed -i 's/# CONFIG_IP_ADVANCED_ROUTER is not set/CONFIG_IP_ADVANCED_ROUTER=y/' target/linux/msm8916/config-* || true
-        sed -i 's/# CONFIG_IP_MULTIPLE_TABLES is not set/CONFIG_IP_MULTIPLE_TABLES=y/' target/linux/msm8916/config-* || true
-        sed -i 's/# CONFIG_FIB_RULES is not set/CONFIG_FIB_RULES=y/' target/linux/msm8916/config-* || true
-    
-        # 2. 同时修改.config，双保险
         echo "CONFIG_IP_ADVANCED_ROUTER=y" >> .config
         echo "CONFIG_IP_MULTIPLE_TABLES=y" >> .config
         echo "CONFIG_FIB_RULES=y" >> .config
         
-    - name: 验证内核策略路由配置
-      run: |
-        cd openwrt
-        echo "=== 内核策略路由配置检查 ==="
+        # 打印最终配置到日志，方便验证
+        echo "=== 最终内核策略路由配置 ==="
         grep -E "CONFIG_IP_ADVANCED_ROUTER|CONFIG_IP_MULTIPLE_TABLES|CONFIG_FIB_RULES" .config
         
     - name: 查看 openwrt 目录

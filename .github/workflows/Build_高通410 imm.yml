@@ -237,10 +237,11 @@ jobs:
     - name: 开启内核IPv4策略路由支持（强制修改target配置）
       run: |
         cd openwrt
-        # 1. 强制修改target内核配置文件（最高优先级，不会被覆盖）
-        sed -i 's/# CONFIG_IP_ADVANCED_ROUTER is not set/CONFIG_IP_ADVANCED_ROUTER=y/' target/linux/qualcommax/ipq40xx/config-*
-        sed -i 's/# CONFIG_IP_MULTIPLE_TABLES is not set/CONFIG_IP_MULTIPLE_TABLES=y/' target/linux/qualcommax/ipq40xx/config-*
-        sed -i 's/# CONFIG_FIB_RULES is not set/CONFIG_FIB_RULES=y/' target/linux/qualcommax/ipq40xx/config-*
+        # 1. 强制修改MSM8916平台的内核配置文件（高通410正确路径）
+        sed -i 's/# CONFIG_IP_ADVANCED_ROUTER is not set/CONFIG_IP_ADVANCED_ROUTER=y/' target/linux/msm8916/config-* || true
+        sed -i 's/# CONFIG_IP_MULTIPLE_TABLES is not set/CONFIG_IP_MULTIPLE_TABLES=y/' target/linux/msm8916/config-* || true
+        sed -i 's/# CONFIG_FIB_RULES is not set/CONFIG_FIB_RULES=y/' target/linux/msm8916/config-* || true
+    
         # 2. 同时修改.config，双保险
         echo "CONFIG_IP_ADVANCED_ROUTER=y" >> .config
         echo "CONFIG_IP_MULTIPLE_TABLES=y" >> .config
